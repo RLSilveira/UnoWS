@@ -7,6 +7,7 @@ package org.me.unows.UnoWS;
 
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import javax.jws.WebService;
 import javax.jws.WebMethod;
@@ -22,6 +23,7 @@ public class UnoWS {
     private static final int MATCH_CAPACITY = 500;
 
     enum MatchState {
+        Reserved,
         WaitStart,
         InProgress,
         Finished
@@ -32,7 +34,6 @@ public class UnoWS {
         int userId1 = 0, userId2 = 0;
         MatchState state;
         Uno game;
-        Date lastTime;
 
         Match() {
             state = MatchState.WaitStart;
@@ -61,82 +62,128 @@ public class UnoWS {
         }
 
     }
-    
-    
 
     private final HashMap<Integer, String> dictUserIdNick;
     private HashMap<Integer, Integer> dictUserIdMatche;
     private final Match[] matches;
+
+    //pre registro
+    private HashMap<String, Integer> dictPreRegUsername;
+    private HashMap<Integer, Integer> dictPreRegUserIdMatch;
 
     public UnoWS() {
 
         matches = new Match[MATCH_CAPACITY];
         dictUserIdNick = new HashMap<>(MATCH_CAPACITY * 2);
         dictUserIdMatche = new HashMap<>(MATCH_CAPACITY * 2);
+        dictPreRegUserIdMatch = new HashMap<>(MATCH_CAPACITY * 2);
+        dictPreRegUsername = new HashMap<>(MATCH_CAPACITY * 2);
+
+    }
+
+    /**
+     * Operação de Web service
+     */
+    @WebMethod(operationName = "preRegistro")
+    public Integer preRegistro(@WebParam(name = "username1") String username1, @WebParam(name = "userId1") int userId1, @WebParam(name = "username2") String username2, @WebParam(name = "userId2") int userId2) {
+
+        dictPreRegUsername.put(username1, userId1);
+        dictPreRegUsername.put(username2, userId2);
+
+        // Find match slot free
+        for (int idx = 0; idx < MATCH_CAPACITY; idx++) {
+
+            if (matches[idx] == null) {
+                // Found
+                matches[idx] = new Match();
+                matches[idx].state = MatchState.Reserved;
+                dictPreRegUserIdMatch.put(userId1, idx);
+                dictPreRegUserIdMatch.put(userId2, idx);
+                return 0;
+            }
+        }
+
+        System.out.println("preRegistro: Match slot free not found!!");
+        return 0;
 
     }
 
     @WebMethod(operationName = "registraJogador")
     public int registraJogador(@WebParam(name = "Nickname") String nick) {
         // TODO: Remover partidas encerradas ha 120 segundas (erro: if da data errado)
-        // remover partidas encerradas ha mais de 120 segundas
-        /*long now = new Date().getTime() - 120 * 1000;
-        for (int i = 0; i < MATCH_CAPACITY; i++) {
-            Match m = matches[i];
-            if (m != null && m.state == MatchState.Finished && m.lastTime.getTime() < now) {
-                matches[i] = null;
-                dictUserIdMatche.remove(m.userId1);
-                dictUserIdMatche.remove(m.userId2);
-                dictUserIdNick.remove(m.userId1);
-                dictUserIdNick.remove(m.userId2);
+
+        int id;
+        Match match = null;
+        int idxMatch = -1;
+
+        if (dictPreRegUsername.containsKey(nick)) {
+            id = dictPreRegUsername.get(nick);
+            idxMatch = dictPreRegUserIdMatch.get(id);
+            match = matches[idxMatch];
+        } else {
+            Random r = new Random();
+            id = r.nextInt();
+            while (id <= 0 || dictUserIdNick.containsKey(id)) { // Id must be great than zero
+                id = r.nextInt();
             }
-        }*/
+        }
 
         if (dictUserIdNick.containsValue(nick)) {
             return -1; // Usuario ja cadastrado
         }
 
-        for (int i = 0; i < MATCH_CAPACITY; i++) {
-            Match match = matches[i];
-            if (match == null || match.state == MatchState.WaitStart) {
+        if (match == null) {
+            for (idxMatch = 0; idxMatch < MATCH_CAPACITY; idxMatch++) {
+                match = matches[idxMatch];
+                if (match == null || match.state == MatchState.WaitStart) {
 
-                Random r = new Random();
-                int id = r.nextInt();
-                while (id <= 0 || dictUserIdNick.containsKey(id)) { // Id must be great than zero
-                    id = r.nextInt();
+                    if (match == null) {
+                        match = new Match();
+                        matches[idxMatch] = match;
+                    }
+
                 }
-
-                dictUserIdNick.put(id, nick);
-                dictUserIdMatche.put(id, i);
-
-                if (match == null) {
-                    match = new Match();
-                    matches[i] = match;
-                    match.setUserId1(id);
-                    matches[i] = match;
-                } else {
-                    match.setUserId2(id);
-                }
-
-                System.out.println("Id " + id + " registrado para jogador " + nick);
-
-                // Success
-                return id;
-
             }
+
+            return -2; // Server is full
         }
 
-        return -2; // Server is full
+        dictUserIdNick.put(id, nick);
+        dictUserIdMatche.put(id, idxMatch);
+
+        if (match.userId1 == 0) {
+            match.setUserId1(id);
+        } else {
+            match.setUserId2(id);
+        }
+
+        System.out.println("Id " + id + " registrado para jogador " + nick);
+
+        // Success
+        return id;
     }
 
     @WebMethod(operationName = "encerraPartida")
     public int encerraPartida(@WebParam(name = "IdUsuario") int idUsuario) {
+
+        if (dictPreRegUsername.containsValue(idUsuario)) {
+            String nick = null;
+            for (Map.Entry<String, Integer> entry : dictPreRegUsername.entrySet()) {
+                if (entry.getValue() == idUsuario) {
+                    nick = entry.getKey();
+                }
+            }
+            if (nick != null) {
+                dictPreRegUsername.remove(nick);
+                dictPreRegUserIdMatch.remove(idUsuario);
+            }
+        }
+
         if (dictUserIdMatche.containsKey(idUsuario)) {
             Match match = matches[dictUserIdMatche.get(idUsuario)];
 
             if (match.state == MatchState.InProgress) {
                 match.state = MatchState.Finished;
-                match.lastTime = new Date();
                 return match.game.encerraPartida(idUsuario);
             }
         }
@@ -257,8 +304,8 @@ public class UnoWS {
 
     }
 
-    @WebMethod(operationName = "obtemNumCartarOponente")
-    public int obtemNumCartarOponente(@WebParam(name = "IdIsuario") int idIsuario) {
+    @WebMethod(operationName = "obtemNumCartasOponente")
+    public int obtemNumCartasOponente(@WebParam(name = "IdIsuario") int idIsuario) {
         int r = temPartida(idIsuario);
         if (r == 0) {
             return -2; // nao ha dois jogadores

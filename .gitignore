@@ -23,3 +23,5 @@
 hs_err_pid*
 /UnoSoap/nbproject/private/
 /UnoSoap/build/
+/UnoClient/nbproject/private/
+/UnoClient/build/

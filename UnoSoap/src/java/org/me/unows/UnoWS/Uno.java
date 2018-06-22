@@ -14,14 +14,16 @@ import java.util.Random;
  */
 class Uno {
 
+    Random gerador;
+
     final int totalCartas = 108;
     private int userId1 = 0, userId2 = 0;
     LinkedList<Integer> cartasP1, cartasP2;
     boolean next = true; // true -> p1
-    Random gerador;
     int[] baralho;
     int numCartas;
-    int cartaMesa;
+    int cartaNaMesa;
+    int corAtiva = -1;
 
     Uno(int userId1, int userId2) {
         this.userId1 = userId1;
@@ -60,21 +62,18 @@ class Uno {
         }
 
         // carta da mesa
-        cartaMesa = baralho[--numCartas];
+        cartaNaMesa = baralho[--numCartas];
 
     }
 
     int getNextPlayer() {
 
-        if (next) {
-            return userId1;
-        } else {
-            return userId2;
-        }
+        return next ? userId1 : userId2;
+
     }
 
     String getCartaMesa() {
-        return cartaToString(cartaMesa);
+        return cartaToString(cartaNaMesa);
     }
 
     int getNumCartasBaralho() {
@@ -98,14 +97,26 @@ class Uno {
         }
     }
 
+    int getCorCarta(int carta) {
+        int cor = carta / 25;
+        return cor;
+    }
 
-    String cartaToString(int carta) {
-
-        if (carta < 0 || carta >= 108) return "ERROR";
-
+    int getNumCarta(int carta) {
         int cor = carta / 25;
         int aux = carta - (cor * 25);
         int valor = (aux + 1) / 2;
+        return valor;
+    }
+
+    String cartaToString(int carta) {
+
+        if (carta < 0 || carta >= 108) {
+            return "ERROR";
+        }
+
+        int cor = getCorCarta(carta);
+        int valor = getNumCarta(carta);
 
         String s1 = null, s2 = null;
 
@@ -170,8 +181,11 @@ class Uno {
         StringBuilder sb = new StringBuilder();
         boolean b = false;
         for (int i : cartas) {
-            if (b) sb.append("|");
-            else b = true;
+            if (b) {
+                sb.append("|");
+            } else {
+                b = true;
+            }
             sb.append(cartaToString(i));
         }
 
@@ -180,12 +194,13 @@ class Uno {
     }
 
     public int getCor() {
-        int cor = cartaMesa / 25;
+        int cor = cartaNaMesa / 25;
         return cor;
     }
 
     public int compraCarta(int idIsuario) {
         if (numCartas > 0) {
+            next = !next; // passar a vez
             if (idIsuario == userId1) {
                 cartasP1.add(baralho[--numCartas]);
                 return 0;
@@ -198,7 +213,6 @@ class Uno {
         return -1;
 
     }
-
 
     public int passaVez(int idIsuario) {
         next = !next;
@@ -222,7 +236,9 @@ class Uno {
             }
         }
 
-        if (cartas == null) return Integer.MAX_VALUE;
+        if (cartas == null) {
+            return Integer.MIN_VALUE;
+        }
 
         int p = 0;
         for (int i : cartas) {
@@ -234,28 +250,30 @@ class Uno {
 
     int getCartaValue(int carta) {
 
-        if (carta < 0 || carta >= 108) return Integer.MAX_VALUE;
+        if (carta < 0 || carta >= 108) {
+            return Integer.MAX_VALUE;
+        }
 
         int cor = carta / 25;
         int aux = carta - (cor * 25);
         int valor = (aux + 1) / 2;
 
-
-        if (cor > 3) return 50; // coringa
-
-        if (valor >= 10) return 20; // cartas de ação
-
+        if (cor > 3) {
+            return 50; // coringa
+        }
+        if (valor >= 10) {
+            return 20; // cartas de ação
+        }
         return valor;
 
     }
-
 
     boolean isWO = false;
     int campeao = 0;
 
     public int encerraPartida(int idUsuario) {
 
-        isWO = true;
+        //isWO = true;
         campeao = idUsuario == userId1 ? userId2 : userId1;
         return 0;
 
@@ -264,24 +282,52 @@ class Uno {
     public int jogaCarta(int idIsuario, int idxCarta, int cor) {
 
         //  0 (jogada inválida: por exemplo, a carta não corresponde à cor que está na mesa)
-
-        if (!(next && idIsuario == userId1 || !next && idIsuario == userId2)){
+        if (!(next && idIsuario == userId1 || !next && idIsuario == userId2)) {
             return -4; // ­4 (não é a vez do jogador).
         }
 
-        LinkedList<Integer> cartas = next ? cartasP1 : cartasP2;
+        LinkedList<Integer> cartasMao = next ? cartasP1 : cartasP2;
 
-        if (idxCarta < 0 || idxCarta >= cartas.size()){
+        if (idxCarta < 0 || idxCarta >= cartasMao.size()) {
             return -3; // ­3 (parâmetros inválidos)
         }
 
-        cartaMesa = cartas.get(idxCarta);
-        cartas.remove(idxCarta);
-        next = !next;
+        int cartaSerJogada = cartasMao.get(idxCarta);
 
-        if (cartaToString(cartaMesa).toUpperCase().startsWith("C")){
-            return -5; // coringa
+        // carta na mesa é coringa
+        int numCartaMesa = getNumCarta(cartaNaMesa);
+        if (cartaSerJogada >= 100) { // coringa
+            
+            corAtiva = cor;
+
+            if (cartaSerJogada >= 104) { // coringa +4
+                LinkedList<Integer> cartasOponente = !next ? cartasP1 : cartasP2;
+                if (numCartas < 0) {
+                    encerraPartida(0);
+                }
+                cartasOponente.add(baralho[--numCartas]);
+                if (numCartas < 0) {
+                    encerraPartida(0);
+                }
+                cartasOponente.add(baralho[--numCartas]);
+                if (numCartas < 0) {
+                    encerraPartida(0);
+                }
+                cartasOponente.add(baralho[--numCartas]);
+                if (numCartas < 0) {
+                    encerraPartida(0);
+                }
+                cartasOponente.add(baralho[--numCartas]);
+            }
         }
+        else{
+            // checar cor/numero
+            
+        }
+
+        // ***  Jogada valida
+        cartaNaMesa = cartasMao.remove(idxCarta);
+        next = !next;
 
         return 1; //  1 (tudo certo)
 
