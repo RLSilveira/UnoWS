@@ -25,10 +25,16 @@ class Uno {
     int cartaNaMesa;
     int corAtiva = -1;
 
-    Uno(int userId1, int userId2) {
+    boolean isWO = false;
+    int campeao = 0;
+
+    UnoWS.Match match;
+            
+    Uno(int userId1, int userId2, UnoWS.Match match) {
         this.userId1 = userId1;
         this.userId2 = userId2;
-
+        this.match = match;
+        
         gerador = new Random(userId1 + userId2);
 
         // cria baralho
@@ -64,6 +70,7 @@ class Uno {
         // carta da mesa
         cartaNaMesa = baralho[--numCartas];
 
+        //TODO: verificar cartas de acao como primeira carta
     }
 
     int getNextPlayer() {
@@ -199,7 +206,15 @@ class Uno {
     }
 
     public int compraCarta(int idIsuario) {
-        if (numCartas > 0) {
+
+        if ((next && idIsuario != userId1)
+                || (!next && idIsuario != userId2)) {
+            return -3; // não é a vez do jogador
+        }
+
+        if (numCartas < 0) {
+            encerraPartida(0);
+        } else {
             next = !next; // passar a vez
             if (idIsuario == userId1) {
                 cartasP1.add(baralho[--numCartas]);
@@ -212,11 +227,6 @@ class Uno {
 
         return -1;
 
-    }
-
-    public int passaVez(int idIsuario) {
-        next = !next;
-        return 0;
     }
 
     public int getPontosJogador(int idIsuario, boolean oponente) {
@@ -268,61 +278,109 @@ class Uno {
 
     }
 
-    boolean isWO = false;
-    int campeao = 0;
-
     public int encerraPartida(int idUsuario) {
 
-        //isWO = true;
-        campeao = idUsuario == userId1 ? userId2 : userId1;
+        if (idUsuario > 0) {
+
+            // *** usuario desistiu
+            isWO = true;
+            campeao = idUsuario == userId1 ? userId2 : userId1;
+
+        } else {
+
+            int pontos1 = getPontosJogador(userId1, false);
+            int pontos2 = getPontosJogador(userId2, false);
+
+            if (pontos1 == pontos2){
+                //empate
+            }
+            else{
+                campeao = (pontos1 > pontos2 ? userId1 : userId2);
+            }
+        }
+
+        match.state = UnoWS.MatchState.Finished;
         return 0;
 
     }
 
     public int jogaCarta(int idIsuario, int idxCarta, int cor) {
 
-        //  0 (jogada inválida: por exemplo, a carta não corresponde à cor que está na mesa)
         if (!(next && idIsuario == userId1 || !next && idIsuario == userId2)) {
-            return -4; // ­4 (não é a vez do jogador).
+            return -3; // não é a vez do jogador.
         }
 
-        LinkedList<Integer> cartasMao = next ? cartasP1 : cartasP2;
+        LinkedList<Integer> cartasMao = next ? cartasP1 : cartasP2; // cartas do jogador
 
         if (idxCarta < 0 || idxCarta >= cartasMao.size()) {
-            return -3; // ­3 (parâmetros inválidos)
+            return -4; // parâmetros inválidos
         }
 
         int cartaSerJogada = cartasMao.get(idxCarta);
 
-        // carta na mesa é coringa
-        int numCartaMesa = getNumCarta(cartaNaMesa);
+        //TODO: Verificar se pode jogar coringa em cima de coringa
         if (cartaSerJogada >= 100) { // coringa
-            
-            corAtiva = cor;
 
-            if (cartaSerJogada >= 104) { // coringa +4
-                LinkedList<Integer> cartasOponente = !next ? cartasP1 : cartasP2;
-                if (numCartas < 0) {
-                    encerraPartida(0);
-                }
-                cartasOponente.add(baralho[--numCartas]);
-                if (numCartas < 0) {
-                    encerraPartida(0);
-                }
-                cartasOponente.add(baralho[--numCartas]);
-                if (numCartas < 0) {
-                    encerraPartida(0);
-                }
-                cartasOponente.add(baralho[--numCartas]);
-                if (numCartas < 0) {
-                    encerraPartida(0);
-                }
-                cartasOponente.add(baralho[--numCartas]);
+            // *** carta na mesa é coringa 
+            if (cor < 0 || cor > 3) {
+                return -4; // parâmetros inválidos
             }
-        }
-        else{
-            // checar cor/numero
-            
+
+            corAtiva = cor; // cor escolhida pelo usuario
+
+            if (cartaSerJogada >= 104) { // coringa +4 - comprar para oponente
+
+                LinkedList<Integer> cartasOponente = !next ? cartasP1 : cartasP2;
+                for (int i = 0; i < 4; i++) {
+                    if (numCartas < 0) {
+                        encerraPartida(0);
+                    }
+                    cartasOponente.add(baralho[--numCartas]);
+                }
+            }
+
+        } else {
+
+            // *** não é coringa, checar cor/numero
+            int corCartaMesa = getCorCarta(cartaNaMesa);
+            int numCartaMesa = getNumCarta(cartaNaMesa);
+
+            int corCartaJogada = getCorCarta(cartaSerJogada);
+            int numCartaJogada = getNumCarta(cartaSerJogada);
+
+            if (corCartaMesa == corCartaJogada || numCartaMesa == numCartaJogada) {
+
+                // *** jogada valida
+                switch (numCartaJogada) {
+                    case 10: // Pu
+                    case 11: // In
+                        // passar a vez
+                        next = !next;
+                        break;
+
+                    case 12: // +2
+                        // comprar 2 cartas para oponente
+                        LinkedList<Integer> cartasOponente = !next ? cartasP1 : cartasP2;
+                        for (int i = 0; i < 2; i++) {
+                            if (numCartas < 0) {
+                                encerraPartida(0);
+                            }
+                            cartasOponente.add(baralho[--numCartas]);
+                        }
+                        // passar a vez
+                        next = !next;
+                        break;
+
+                    default:
+                        break;
+                }
+            } else {
+
+                // *** jogada invalida
+                return 0; // 0 (jogada inválida: por exemplo, a carta não corresponde à cor que está na mesa)
+
+            }
+
         }
 
         // ***  Jogada valida

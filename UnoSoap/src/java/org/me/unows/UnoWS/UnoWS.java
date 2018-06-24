@@ -56,7 +56,7 @@ public class UnoWS {
             this.userId2 = userId2;
 
             // Start the match
-            game = new Uno(userId1, userId2);
+            game = new Uno(userId1, userId2, this);
             state = MatchState.InProgress;
 
         }
@@ -68,7 +68,7 @@ public class UnoWS {
     private final Match[] matches;
 
     //pre registro
-    private HashMap<String, Integer> dictPreRegUsername;
+    private HashMap<String, Integer> dictPreRegUsernameUserId;
     private HashMap<Integer, Integer> dictPreRegUserIdMatch;
 
     public UnoWS() {
@@ -77,7 +77,7 @@ public class UnoWS {
         dictUserIdNick = new HashMap<>(MATCH_CAPACITY * 2);
         dictUserIdMatche = new HashMap<>(MATCH_CAPACITY * 2);
         dictPreRegUserIdMatch = new HashMap<>(MATCH_CAPACITY * 2);
-        dictPreRegUsername = new HashMap<>(MATCH_CAPACITY * 2);
+        dictPreRegUsernameUserId = new HashMap<>(MATCH_CAPACITY * 2);
 
     }
 
@@ -87,14 +87,14 @@ public class UnoWS {
     @WebMethod(operationName = "preRegistro")
     public Integer preRegistro(@WebParam(name = "username1") String username1, @WebParam(name = "userId1") int userId1, @WebParam(name = "username2") String username2, @WebParam(name = "userId2") int userId2) {
 
-        dictPreRegUsername.put(username1, userId1);
-        dictPreRegUsername.put(username2, userId2);
+        dictPreRegUsernameUserId.put(username1, userId1);
+        dictPreRegUsernameUserId.put(username2, userId2);
 
         // Find match slot free
         for (int idx = 0; idx < MATCH_CAPACITY; idx++) {
 
             if (matches[idx] == null) {
-                // Found
+                // Found - reservar partida
                 matches[idx] = new Match();
                 matches[idx].state = MatchState.Reserved;
                 dictPreRegUserIdMatch.put(userId1, idx);
@@ -104,7 +104,7 @@ public class UnoWS {
         }
 
         System.out.println("preRegistro: Match slot free not found!!");
-        return 0;
+        return -1;
 
     }
 
@@ -116,8 +116,8 @@ public class UnoWS {
         Match match = null;
         int idxMatch = -1;
 
-        if (dictPreRegUsername.containsKey(nick)) {
-            id = dictPreRegUsername.get(nick);
+        if (dictPreRegUsernameUserId.containsKey(nick)) {
+            id = dictPreRegUsernameUserId.get(nick);
             idxMatch = dictPreRegUserIdMatch.get(id);
             match = matches[idxMatch];
         } else {
@@ -133,6 +133,7 @@ public class UnoWS {
         }
 
         if (match == null) {
+            boolean bFound = false;
             for (idxMatch = 0; idxMatch < MATCH_CAPACITY; idxMatch++) {
                 match = matches[idxMatch];
                 if (match == null || match.state == MatchState.WaitStart) {
@@ -141,17 +142,20 @@ public class UnoWS {
                         match = new Match();
                         matches[idxMatch] = match;
                     }
-
+                    bFound = true;
+                    break;
                 }
             }
 
-            return -2; // Server is full
+            if (!bFound) {
+                return -2; // Server is full
+            }
         }
 
         dictUserIdNick.put(id, nick);
         dictUserIdMatche.put(id, idxMatch);
 
-        if (match.userId1 == 0) {
+        if (match.getUserId1() == 0) {
             match.setUserId1(id);
         } else {
             match.setUserId2(id);
@@ -166,19 +170,21 @@ public class UnoWS {
     @WebMethod(operationName = "encerraPartida")
     public int encerraPartida(@WebParam(name = "IdUsuario") int idUsuario) {
 
-        if (dictPreRegUsername.containsValue(idUsuario)) {
+        // remove pre registro
+        if (dictPreRegUsernameUserId.containsValue(idUsuario)) {
             String nick = null;
-            for (Map.Entry<String, Integer> entry : dictPreRegUsername.entrySet()) {
+            for (Map.Entry<String, Integer> entry : dictPreRegUsernameUserId.entrySet()) {
                 if (entry.getValue() == idUsuario) {
                     nick = entry.getKey();
                 }
             }
             if (nick != null) {
-                dictPreRegUsername.remove(nick);
+                dictPreRegUsernameUserId.remove(nick);
                 dictPreRegUserIdMatch.remove(idUsuario);
             }
         }
 
+        // encerra partida
         if (dictUserIdMatche.containsKey(idUsuario)) {
             Match match = matches[dictUserIdMatche.get(idUsuario)];
 
@@ -198,7 +204,7 @@ public class UnoWS {
         if (dictUserIdMatche.containsKey(idUsuario)) { // verifica se ha partida para usuario
             Match match = matches[dictUserIdMatche.get(idUsuario)];
 
-            if (match.state == MatchState.WaitStart) {
+            if (match.state == MatchState.WaitStart || match.state == MatchState.Reserved) {
 
                 return 0; // ainda nao ha partida disponivel
 
@@ -240,35 +246,36 @@ public class UnoWS {
         if (dictUserIdMatche.containsKey(idIsuario)) { // verifica se ha partida para usuario
 
             Match match = matches[dictUserIdMatche.get(idIsuario)];
-            if (match.state == MatchState.WaitStart) {
-
-                return -2; // ainda nao ha partida disponivel
-
-            } else if (match.state == MatchState.InProgress) {
-
-                if (match.game.getNextPlayer() == idIsuario) {
-                    return 1;
-                } else {
-                    return 0;
-                }
-
-            } else if (match.state == MatchState.Finished) {
-
-                if (match.game.campeao == 0) {
-                    return 4; // houve empate
-                }
-                if (match.game.campeao == idIsuario) {
-                    if (!match.game.isWO) {
-                        return 2; // é o vencedor 
-                    } else {
-                        return 5; // vencedor por WO 
-                    }
-                } else {
-                    if (!match.game.isWO) {
-                        return 3; // é o perdedor
-                    } else {
-                        return 6; // perdedor por WO
-                    }
+            if (null != match.state) {
+                switch (match.state) {
+                    case WaitStart:
+                    case Reserved:
+                        return -2; // ainda nao ha partida disponivel
+                    case InProgress:
+                        if (match.game.getNextPlayer() == idIsuario) {
+                            return 1;
+                        } else {
+                            return 0;
+                        }
+                    case Finished:
+                        if (match.game.campeao == 0) {
+                            return 4; // houve empate
+                        }
+                        if (match.game.campeao == idIsuario) {
+                            if (!match.game.isWO) {
+                                return 2; // é o vencedor 
+                            } else {
+                                return 5; // vencedor por WO 
+                            }
+                        } else {
+                            if (!match.game.isWO) {
+                                return 3; // é o perdedor
+                            } else {
+                                return 6; // perdedor por WO
+                            }
+                        }
+                    default:
+                        break;
                 }
             }
 
@@ -339,6 +346,9 @@ public class UnoWS {
     public int obtemCorAtiva(@WebParam(name = "IdIsuario") int idIsuario) {
         if (dictUserIdMatche.containsKey(idIsuario)) {
             Match match = matches[dictUserIdMatche.get(idIsuario)];
+            if (match.state == MatchState.Reserved || match.state == MatchState.WaitStart) {
+                return -2; // erro: ainda não há 2 jogadores registrados na partida
+            }
             return match.game.getCor();
         }
         return -1;
@@ -348,6 +358,9 @@ public class UnoWS {
     public int compraCarta(@WebParam(name = "IdIsuario") int idIsuario) {
         if (dictUserIdMatche.containsKey(idIsuario)) {
             Match match = matches[dictUserIdMatche.get(idIsuario)];
+            if (match.state == MatchState.Reserved || match.state == MatchState.WaitStart) {
+                return -2; // partida não iniciada
+            }
             return match.game.compraCarta(idIsuario);
         }
         return -1;
@@ -355,20 +368,13 @@ public class UnoWS {
 
     @WebMethod(operationName = "jogaCarta")
     public int jogaCarta(@WebParam(name = "IdIsuario") int idIsuario, @WebParam(name = "IdxCarta") int idxCarta, @WebParam(name = "Cor") int cor) {
-        //TODO: int jogaCarta(int idIsuario, int idxCarta, int cor)
 
         if (dictUserIdMatche.containsKey(idIsuario)) {
             Match match = matches[dictUserIdMatche.get(idIsuario)];
-            if (match.state == MatchState.WaitStart) {
+            if (match.state == MatchState.WaitStart || match.state == MatchState.Reserved) {
                 return -2; // ­2 (partida não iniciada: ainda não há dois jogadores registrados na partida)
             } else {
-
-                //  1 (tudo certo), 
-                //  0 (jogada inválida: por exemplo, a carta não corresponde à cor que está na mesa)
-                // ­3 (parâmetros inválidos)
-                // ­4 (não é a vez do jogador).
                 return match.game.jogaCarta(idIsuario, idxCarta, cor);
-
             }
         }
 
@@ -385,24 +391,15 @@ public class UnoWS {
         return obtemPontosAux(idIsuario, true);
     }
 
-    @WebMethod(operationName = "passarVez")
-    public int passarVez(@WebParam(name = "IdUsuario") int idUsuario) {
-        if (dictUserIdMatche.containsKey(idUsuario)) {
-            Match match = matches[dictUserIdMatche.get(idUsuario)];
-            return match.game.passaVez(idUsuario);
-        }
-        return -1;
-    }
-
     private int obtemPontosAux(int idIsuario, boolean oponente) {
         if (dictUserIdMatche.containsKey(idIsuario)) {
             Match match = matches[dictUserIdMatche.get(idIsuario)];
-            if (match.state == MatchState.Finished) {
+
+            if (match.state == MatchState.InProgress
+                    || match.state == MatchState.Finished) {
                 return match.game.getPontosJogador(idIsuario, oponente);
-            } else if (match.state == MatchState.WaitStart) {
-                return -2; // partida ainda não iniciada
             } else {
-                return -3; // partida não finalizada
+                return -2; // partida ainda não iniciada
             }
         }
 

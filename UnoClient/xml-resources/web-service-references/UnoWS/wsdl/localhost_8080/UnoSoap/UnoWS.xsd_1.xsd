@@ -52,10 +52,6 @@
 
 <xs:element name="obtemPontosResponse" type="tns:obtemPontosResponse"/>
 
-<xs:element name="passarVez" type="tns:passarVez"/>
-
-<xs:element name="passarVezResponse" type="tns:passarVezResponse"/>
-
 <xs:element name="preRegistro" type="tns:preRegistro"/>
 
 <xs:element name="preRegistroResponse" type="tns:preRegistroResponse"/>
@@ -92,18 +88,6 @@
 </xs:sequence>
 </xs:complexType>
 
-<xs:complexType name="obtemPontos">
-<xs:sequence>
-<xs:element name="IdIsuario" type="xs:int"/>
-</xs:sequence>
-</xs:complexType>
-
-<xs:complexType name="obtemPontosResponse">
-<xs:sequence>
-<xs:element name="return" type="xs:int"/>
-</xs:sequence>
-</xs:complexType>
-
 <xs:complexType name="ehMinhaVez">
 <xs:sequence>
 <xs:element name="IdIsuario" type="xs:int"/>
@@ -111,6 +95,18 @@
 </xs:complexType>
 
 <xs:complexType name="ehMinhaVezResponse">
+<xs:sequence>
+<xs:element name="return" type="xs:int"/>
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="obtemPontos">
+<xs:sequence>
+<xs:element name="IdIsuario" type="xs:int"/>
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="obtemPontosResponse">
 <xs:sequence>
 <xs:element name="return" type="xs:int"/>
 </xs:sequence>
@@ -152,18 +148,6 @@
 </xs:sequence>
 </xs:complexType>
 
-<xs:complexType name="obtemOponente">
-<xs:sequence>
-<xs:element name="IdIsuario" type="xs:int"/>
-</xs:sequence>
-</xs:complexType>
-
-<xs:complexType name="obtemOponenteResponse">
-<xs:sequence>
-<xs:element name="return" type="xs:string" minOccurs="0"/>
-</xs:sequence>
-</xs:complexType>
-
 <xs:complexType name="preRegistro">
 <xs:sequence>
 <xs:element name="username1" type="xs:string" minOccurs="0"/>
@@ -179,6 +163,18 @@
 </xs:sequence>
 </xs:complexType>
 
+<xs:complexType name="obtemOponente">
+<xs:sequence>
+<xs:element name="IdIsuario" type="xs:int"/>
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="obtemOponenteResponse">
+<xs:sequence>
+<xs:element name="return" type="xs:string" minOccurs="0"/>
+</xs:sequence>
+</xs:complexType>
+
 <xs:complexType name="mostraMao">
 <xs:sequence>
 <xs:element name="IdIsuario" type="xs:int"/>
@@ -188,18 +184,6 @@
 <xs:complexType name="mostraMaoResponse">
 <xs:sequence>
 <xs:element name="return" type="xs:string" minOccurs="0"/>
-</xs:sequence>
-</xs:complexType>
-
-<xs:complexType name="passarVez">
-<xs:sequence>
-<xs:element name="IdUsuario" type="xs:int"/>
-</xs:sequence>
-</xs:complexType>
-
-<xs:complexType name="passarVezResponse">
-<xs:sequence>
-<xs:element name="return" type="xs:int"/>
 </xs:sequence>
 </xs:complexType>
 
@@ -241,18 +225,6 @@
 </xs:sequence>
 </xs:complexType>
 
-<xs:complexType name="obtemNumCartasBaralho">
-<xs:sequence>
-<xs:element name="IdIsuario" type="xs:int"/>
-</xs:sequence>
-</xs:complexType>
-
-<xs:complexType name="obtemNumCartasBaralhoResponse">
-<xs:sequence>
-<xs:element name="return" type="xs:int"/>
-</xs:sequence>
-</xs:complexType>
-
 <xs:complexType name="obtemCartaMesa">
 <xs:sequence>
 <xs:element name="IdIsuario" type="xs:int"/>
@@ -262,6 +234,18 @@
 <xs:complexType name="obtemCartaMesaResponse">
 <xs:sequence>
 <xs:element name="return" type="xs:string" minOccurs="0"/>
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="obtemNumCartasBaralho">
+<xs:sequence>
+<xs:element name="IdIsuario" type="xs:int"/>
+</xs:sequence>
+</xs:complexType>
+
+<xs:complexType name="obtemNumCartasBaralhoResponse">
+<xs:sequence>
+<xs:element name="return" type="xs:int"/>
 </xs:sequence>
 </xs:complexType>
 
