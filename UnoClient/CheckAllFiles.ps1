@@ -1,0 +1,11 @@
+.\CompareFilesUNO.ps1 0000 0
+.\CompareFilesUNO.ps1 1000 0
+.\CompareFilesUNO.ps1 3000 0
+.\CompareFilesUNO.ps1 2000 0
+.\CompareFilesUNO.ps1 2250 0
+.\CompareFilesUNO.ps1 2500 0
+.\CompareFilesUNO.ps1 2750 0
+.\CompareFilesUNO.ps1 4000 0
+.\CompareFilesUNO.ps1 4250 0
+.\CompareFilesUNO.ps1 4500 0
+.\CompareFilesUNO.ps1 4750 0
