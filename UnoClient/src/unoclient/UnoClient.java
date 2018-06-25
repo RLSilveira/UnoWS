@@ -23,14 +23,14 @@ public class UnoClient {
         UnoWS_Service service = new UnoWS_Service();
         port = service.getUnoWSPort();
 
-        executaTeste("Uno-0000",false);
-//        executaTeste("Uno-1000",false);
-//        executaTeste("Uno-3000",false);
-//
-//        String[] testePar1 = {"Uno-2000","Uno-2250","Uno-2500","Uno-2750"};
-//        executaTesteParalelo(testePar1);
-//        String[] testePar2 = {"Uno-4000","Uno-4250","Uno-4500","Uno-4x750"};
-//        executaTesteParalelo(testePar2);
+        executaTeste("Uno-0000", true);
+        executaTeste("Uno-1000",false);
+        executaTeste("Uno-3000",false);
+
+        String[] testePar1 = {"Uno-2000","Uno-2250","Uno-2500","Uno-2750"};
+        executaTesteParalelo(testePar1);
+        String[] testePar2 = {"Uno-4000","Uno-4250","Uno-4500","Uno-4750"};
+        executaTesteParalelo(testePar2);
     }
     
     private static void executaTesteParalelo(String[] rad) throws IOException {
