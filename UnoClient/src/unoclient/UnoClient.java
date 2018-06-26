@@ -23,6 +23,12 @@ public class UnoClient {
         UnoWS_Service service = new UnoWS_Service();
         port = service.getUnoWSPort();
 
+        //executaTeste("Uno-2000", false);
+        //executaTeste("Uno-2250", false);
+        //executaTeste("Uno-2500", false);
+        //executaTeste("Uno-2750", false);
+
+        
         executaTeste("Uno-0000", true);
         executaTeste("Uno-1000",false);
         executaTeste("Uno-3000",false);

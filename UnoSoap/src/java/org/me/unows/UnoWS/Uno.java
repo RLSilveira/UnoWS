@@ -5,6 +5,7 @@
  */
 package org.me.unows.UnoWS;
 
+import com.sun.tools.xjc.api.S2JJAXBModel;
 import java.util.LinkedList;
 import java.util.Random;
 
@@ -26,15 +27,15 @@ class Uno {
     int corAtiva = -1;
 
     boolean isWO = false;
-    int campeao = 0;
+    int campeao = -1;
 
     UnoWS.Match match;
-            
+
     Uno(int userId1, int userId2, UnoWS.Match match) {
         this.userId1 = userId1;
         this.userId2 = userId2;
         this.match = match;
-        
+
         gerador = new Random(userId1 + userId2);
 
         // cria baralho
@@ -70,24 +71,58 @@ class Uno {
         // carta da mesa
         cartaNaMesa = baralho[--numCartas];
 
-        //TODO: verificar cartas de acao como primeira carta
+        // cartas de acao como primeira carta
+        while (cartaNaMesa >= 100 || getNumCarta(cartaNaMesa) >= 10) {
+
+            if (cartaNaMesa >= 100) {
+                cartaNaMesa = baralho[--numCartas];
+            } else {
+                switch (getNumCarta(cartaNaMesa)) {
+                    case 10: // Pu
+                    case 11: // In
+                        // passar a vez
+                        next = !next;
+                        break;
+
+                    case 12: // +2
+                        // comprar 2 cartas para mim
+                        LinkedList<Integer> cartasOponente = next ? cartasP1 : cartasP2;
+                        for (int i = 0; i < 2; i++) {
+                            cartasOponente.add(baralho[--numCartas]);
+                        }
+                        // passar a vez
+                        next = !next;
+                        break;
+
+                    default:
+                        break;
+                }
+
+                break;
+
+            }
+
+        }
+
+        corAtiva = getCorCarta(cartaNaMesa);
+
     }
 
-    int getNextPlayer() {
+    synchronized int getNextPlayer() {
 
         return next ? userId1 : userId2;
 
     }
 
-    String getCartaMesa() {
+    synchronized String getCartaMesa() {
         return cartaToString(cartaNaMesa);
     }
 
-    int getNumCartasBaralho() {
+    synchronized int getNumCartasBaralho() {
         return numCartas;
     }
 
-    int getNumCartas(int idUsuario, boolean oponente) {
+    synchronized int getNumCartas(int idUsuario, boolean oponente) {
 
         if (idUsuario == userId1) {
             if (oponente) {
@@ -104,19 +139,23 @@ class Uno {
         }
     }
 
-    int getCorCarta(int carta) {
+    synchronized int getCorCarta(int carta) {
         int cor = carta / 25;
         return cor;
     }
 
-    int getNumCarta(int carta) {
+    private synchronized int getNumCarta(int carta) {
+
+        if (carta >= 100) {
+            return carta; // coringa
+        }
         int cor = carta / 25;
         int aux = carta - (cor * 25);
         int valor = (aux + 1) / 2;
         return valor;
     }
 
-    String cartaToString(int carta) {
+    synchronized String cartaToString(int carta) {
 
         if (carta < 0 || carta >= 108) {
             return "ERROR";
@@ -173,7 +212,7 @@ class Uno {
         return s1 + "/" + s2;
     }
 
-    public String getCartas(int idIsuario) {
+    public synchronized String getCartas(int idIsuario) {
         LinkedList<Integer> cartas = null;
         if (idIsuario == userId1) {
             cartas = cartasP1;
@@ -182,7 +221,7 @@ class Uno {
         }
 
         if (cartas == null || cartas.isEmpty()) {
-            return null;
+            return "";
         }
 
         StringBuilder sb = new StringBuilder();
@@ -200,46 +239,47 @@ class Uno {
 
     }
 
-    public int getCor() {
-        int cor = cartaNaMesa / 25;
-        return cor;
+    public synchronized int getCorAtiva() {
+        return corAtiva;
     }
 
-    public int compraCarta(int idIsuario) {
+    public synchronized int compraCarta(int idIsuario) {
 
         if ((next && idIsuario != userId1)
                 || (!next && idIsuario != userId2)) {
             return -3; // não é a vez do jogador
         }
 
-        if (numCartas < 0) {
-            encerraPartida(0);
-        } else {
-            next = !next; // passar a vez
-            if (idIsuario == userId1) {
-                cartasP1.add(baralho[--numCartas]);
-                return 0;
-            } else if (idIsuario == userId2) {
-                cartasP2.add(baralho[--numCartas]);
-                return 0;
-            }
+        if (numCartas <= 0) {
+            return -1; // não é possivel comprar, acabou baralho
         }
 
-        return -1;
+        next = !next; // passar a vez
+
+        if (idIsuario == userId1) {
+            cartasP1.add(baralho[--numCartas]);
+        } else if (idIsuario == userId2) {
+            cartasP2.add(baralho[--numCartas]);
+        }
+
+        return 1; // suesso
 
     }
 
-    public int getPontosJogador(int idIsuario, boolean oponente) {
+    public synchronized int getPontosJogador(int idUsuario, boolean isOponente) {
 
         LinkedList<Integer> cartas = null;
-        if (idIsuario == userId1) {
-            if (oponente) {
+        boolean isJogador1 = idUsuario == userId1;
+        boolean isJogador2 = idUsuario == userId2;
+
+        if (isJogador1) {
+            if (isOponente) {
                 cartas = cartasP2;
             } else {
                 cartas = cartasP1;
             }
-        } else if (idIsuario == userId2) {
-            if (oponente) {
+        } else if (isJogador2) {
+            if (isOponente) {
                 cartas = cartasP1;
             } else {
                 cartas = cartasP2;
@@ -247,7 +287,17 @@ class Uno {
         }
 
         if (cartas == null) {
-            return Integer.MIN_VALUE;
+            
+            System.out.println("getPontos: cartas isn null");
+            System.out.println(String.format("solicitado por usuario: %d", idUsuario));
+            System.out.println(String.format("partida entre {%d %d}", userId1, userId2));
+            System.out.println(String.format("baralho: %d, %s", numCartas, cartaToString(cartaNaMesa)));
+            System.out.println(String.format("mao P1: %s", getCartas(userId1)));
+            System.out.println(String.format("mao P2: %s", getCartas(userId2)));
+            System.out.println(String.format("campeao: %d W.O.:%d", campeao, isWO ? 1 : 0));
+            System.out.println(String.format("match state: %s", match.state));
+
+            return Integer.MIN_VALUE - 1;
         }
 
         int p = 0;
@@ -258,7 +308,7 @@ class Uno {
         return p;
     }
 
-    int getCartaValue(int carta) {
+    synchronized int getCartaValue(int carta) {
 
         if (carta < 0 || carta >= 108) {
             return Integer.MAX_VALUE;
@@ -278,7 +328,7 @@ class Uno {
 
     }
 
-    public int encerraPartida(int idUsuario) {
+    public synchronized int encerraPartida(int idUsuario) {
 
         if (idUsuario > 0) {
 
@@ -288,15 +338,24 @@ class Uno {
 
         } else {
 
-            int pontos1 = getPontosJogador(userId1, false);
-            int pontos2 = getPontosJogador(userId2, false);
+            // *** partida acabou
+            if (cartasP1.isEmpty()) {
+                campeao = userId1;
+            } else if (cartasP2.isEmpty()) {
+                campeao = userId2;
+            } else {
 
-            if (pontos1 == pontos2){
-                //empate
+                // *** calcular pontos
+                int pontosP1 = getPontosJogador(userId1, false);
+                int pontosP2 = getPontosJogador(userId2, false);
+
+                if (pontosP1 == pontosP2) {
+                    campeao = 0; //empate
+                } else {
+                    campeao = pontosP1 < pontosP2 ? userId1 : userId2;
+                }
             }
-            else{
-                campeao = (pontos1 > pontos2 ? userId1 : userId2);
-            }
+
         }
 
         match.state = UnoWS.MatchState.Finished;
@@ -304,7 +363,7 @@ class Uno {
 
     }
 
-    public int jogaCarta(int idIsuario, int idxCarta, int cor) {
+    public synchronized int jogaCarta(int idIsuario, int idxCarta, int cor) {
 
         if (!(next && idIsuario == userId1 || !next && idIsuario == userId2)) {
             return -3; // não é a vez do jogador.
@@ -318,7 +377,6 @@ class Uno {
 
         int cartaSerJogada = cartasMao.get(idxCarta);
 
-        //TODO: Verificar se pode jogar coringa em cima de coringa
         if (cartaSerJogada >= 100) { // coringa
 
             // *** carta na mesa é coringa 
@@ -332,8 +390,9 @@ class Uno {
 
                 LinkedList<Integer> cartasOponente = !next ? cartasP1 : cartasP2;
                 for (int i = 0; i < 4; i++) {
-                    if (numCartas < 0) {
+                    if (numCartas <= 0) {
                         encerraPartida(0);
+                        break;
                     }
                     cartasOponente.add(baralho[--numCartas]);
                 }
@@ -342,13 +401,12 @@ class Uno {
         } else {
 
             // *** não é coringa, checar cor/numero
-            int corCartaMesa = getCorCarta(cartaNaMesa);
             int numCartaMesa = getNumCarta(cartaNaMesa);
 
             int corCartaJogada = getCorCarta(cartaSerJogada);
             int numCartaJogada = getNumCarta(cartaSerJogada);
 
-            if (corCartaMesa == corCartaJogada || numCartaMesa == numCartaJogada) {
+            if (corAtiva == corCartaJogada || numCartaMesa == numCartaJogada) {
 
                 // *** jogada valida
                 switch (numCartaJogada) {
@@ -362,8 +420,9 @@ class Uno {
                         // comprar 2 cartas para oponente
                         LinkedList<Integer> cartasOponente = !next ? cartasP1 : cartasP2;
                         for (int i = 0; i < 2; i++) {
-                            if (numCartas < 0) {
+                            if (numCartas <= 0) {
                                 encerraPartida(0);
+                                break;
                             }
                             cartasOponente.add(baralho[--numCartas]);
                         }
@@ -381,11 +440,18 @@ class Uno {
 
             }
 
+            corAtiva = corCartaJogada;
+
         }
 
         // ***  Jogada valida
         cartaNaMesa = cartasMao.remove(idxCarta);
         next = !next;
+
+        if (cartasMao.isEmpty()) {
+            // acabou as cartas, fim de jogo
+            encerraPartida(0);
+        }
 
         return 1; //  1 (tudo certo)
 

@@ -19,6 +19,10 @@ for ($i = 0; $i -le ($fileOUT.Count - 1); $i++) {
         $c++
         if ($showError)
         {
+            if ($c>1000){
+                "check for test Uno-" + $param + " end. " + $c + "+ errors"
+                return
+            } 
             $output = "Line error {0} - operation:{1}     out:{2} sol:{3}" -f ($i + 1), ($fileIN[$i+1]), ($fileOUT[$i]), ($fileSOL[$i])
             $output
         }
