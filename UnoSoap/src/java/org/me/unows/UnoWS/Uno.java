@@ -261,6 +261,10 @@ class Uno {
         } else if (idIsuario == userId2) {
             cartasP2.add(baralho[--numCartas]);
         }
+        
+        if (numCartas == 0){
+            encerraPartida(0);
+        }
 
         return 1; // suesso
 
@@ -287,16 +291,6 @@ class Uno {
         }
 
         if (cartas == null) {
-            
-            System.out.println("getPontos: cartas isn null");
-            System.out.println(String.format("solicitado por usuario: %d", idUsuario));
-            System.out.println(String.format("partida entre {%d %d}", userId1, userId2));
-            System.out.println(String.format("baralho: %d, %s", numCartas, cartaToString(cartaNaMesa)));
-            System.out.println(String.format("mao P1: %s", getCartas(userId1)));
-            System.out.println(String.format("mao P2: %s", getCartas(userId2)));
-            System.out.println(String.format("campeao: %d W.O.:%d", campeao, isWO ? 1 : 0));
-            System.out.println(String.format("match state: %s", match.state));
-
             return Integer.MIN_VALUE - 1;
         }
 
@@ -330,6 +324,7 @@ class Uno {
 
     public synchronized int encerraPartida(int idUsuario) {
 
+        match.state = UnoWS.MatchState.Finished;
         if (idUsuario > 0) {
 
             // *** usuario desistiu
@@ -358,7 +353,6 @@ class Uno {
 
         }
 
-        match.state = UnoWS.MatchState.Finished;
         return 0;
 
     }
@@ -448,7 +442,7 @@ class Uno {
         cartaNaMesa = cartasMao.remove(idxCarta);
         next = !next;
 
-        if (cartasMao.isEmpty()) {
+        if (cartasMao.isEmpty() || numCartas == 0) {
             // acabou as cartas, fim de jogo
             encerraPartida(0);
         }

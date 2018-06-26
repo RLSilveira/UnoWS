@@ -112,12 +112,10 @@ public class UnoWS {
                 dictPreRegUserIdMatch.put(userId1, idxMatch);
                 dictPreRegUserIdMatch.put(userId2, idxMatch);
 
-                //System.out.println(String.format("preRegistro: %s %d %s %d", username1, userId1, username2, userId2));
                 return 0;
             }
         }
 
-        // System.out.println(String.format("erro preRegistro: %s %d %s %d", username1, userId1, username2, userId2));
         return 0;
 
     }
@@ -126,7 +124,6 @@ public class UnoWS {
     public synchronized int registraJogador(@WebParam(name = "Nickname") String nick) {
         // TODO: Remover partidas encerradas ha 120 segundas (erro: if da data errado)
 
-//        System.out.println(String.format("registraJogador: %s", nick));
         if (dictUserIdNick.containsValue(nick)) {
             return -1; // Usuario ja cadastrado
         }
@@ -213,7 +210,6 @@ public class UnoWS {
             if (null == matches[idxMatch].state) {
 
                 // não deve cair aqui
-                System.out.println("encerra partina: match.state is null");
                 return -1;
 
             } else {
@@ -239,7 +235,6 @@ public class UnoWS {
             }
         }
 
-        System.out.println("encerra partida jogador " + idUsuario + ": partida não encontrada");
         return -1;
 
     }
@@ -290,6 +285,7 @@ public class UnoWS {
 
     @WebMethod(operationName = "ehMinhaVez")
     public synchronized int ehMinhaVez(@WebParam(name = "IdIsuario") int idIsuario) {
+        
         if (dictUserIdMatche.containsKey(idIsuario)) { // verifica se ha partida para usuario
 
             Match match = matches[dictUserIdMatche.get(idIsuario)];
