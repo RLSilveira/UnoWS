@@ -26,7 +26,8 @@ public class UnoWS {
         Reserved,
         WaitStart,
         InProgress,
-        Finished
+        Finished,
+        Removed
     }
 
     class Match {
@@ -47,17 +48,6 @@ public class UnoWS {
             this.userId1 = userId1;
         }
 
-        boolean removeJogador(int userId) {
-            if (userId == userId1) {
-                userId1 = 0;
-            } else if (userId == userId2) {
-                userId2 = 0;
-            }
-
-            return (userId1 | userId2) == 0; // true = 2 jogadores sairam, deve-se remover a partida
-
-        }
-
         int getUserId2() {
             return userId2;
         }
@@ -72,6 +62,16 @@ public class UnoWS {
 
         }
 
+        boolean removeJogador(int userId) {
+            if (userId == userId1) {
+                userId1 = 0;
+            } else if (userId == userId2) {
+                userId2 = 0;
+            }
+
+            return userId1 + userId2 == 0; // true = 2 jogadores sairam, deve-se remover a partida
+
+        }
     }
 
     private final HashMap<Integer, String> dictUserIdNick;
@@ -104,7 +104,7 @@ public class UnoWS {
         // Find match slot free
         for (int idxMatch = 0; idxMatch < MATCH_CAPACITY; idxMatch++) {
 
-            if (matches[idxMatch] == null || matches[idxMatch].state == MatchState.Finished) {
+            if (matches[idxMatch] == null || matches[idxMatch].state == MatchState.Removed) {
                 // Found - reservar partida
                 Match match = new Match();
                 match.state = MatchState.Reserved;
@@ -171,9 +171,9 @@ public class UnoWS {
             boolean bFound = false;
             for (idxMatch = 0; idxMatch < MATCH_CAPACITY; idxMatch++) {
                 match = matches[idxMatch];
-                if (match == null || match.state == MatchState.WaitStart) {
+                if (match == null || match.state == MatchState.Removed || match.state == MatchState.WaitStart) {
 
-                    if (match == null) {
+                    if (match == null || match.state == MatchState.Removed) {
                         match = new Match();
                         matches[idxMatch] = match;
                     }
@@ -211,24 +211,31 @@ public class UnoWS {
             dictUserIdNick.remove(idUsuario);
 
             if (null == matches[idxMatch].state) {
+
                 // não deve cair aqui
                 System.out.println("encerra partina: match.state is null");
                 return -1;
+
             } else {
-                switch (matches[idxMatch].state) {
-                    case InProgress:
-                        matches[idxMatch].game.encerraPartida(idUsuario);
-                    case WaitStart:
-                    case Reserved:
-                        matches[idxMatch].state = MatchState.Finished;
-                    case Finished:
-                    default:
-                        if (matches[idxMatch].removeJogador(idUsuario)) {
-                            // remover partida do ultimo pendurado
-                            matches[idxMatch] = null;
-                        }
-                        return 0;
+
+                if (matches[idxMatch].state == MatchState.InProgress) {
+
+                    // *** encerrar partida por W.O.
+                    matches[idxMatch].game.encerraPartida(idUsuario);
+
                 }
+
+                matches[idxMatch].state = MatchState.Finished;
+
+                if (matches[idxMatch].removeJogador(idUsuario)) {
+
+                    // remover partida do ultimo usuario a sair
+                    // matches[idxMatch] = null;
+                    matches[idxMatch].state = MatchState.Removed;
+
+                }
+
+                return 0;
             }
         }
 

@@ -19,7 +19,7 @@ for ($i = 0; $i -le ($fileOUT.Count - 1); $i++) {
         $c++
         if ($showError)
         {
-            if ($c>1000){
+            if ($c>250){
                 "check for test Uno-" + $param + " end. " + $c + "+ errors"
                 return
             } 
